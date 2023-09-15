@@ -1,5 +1,10 @@
 from flask import Flask, request
 from midjourney import start_bot
+from dotenv import load_dotenv
+import os
+
+# Load variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -7,12 +12,18 @@ app = Flask(__name__)
 def healthcheck():
     return 'Great'
 
-@app.route('/mid')
+
+@app.route('/generate')
 def get_query_param():
-    query = request.args.get('query')
-    if query:
-        start_bot('realistic', 'https://discord.com/channels/1149334794837180577/1149334795546009612', query, 'building materials')
-    return f"The value of 'query' is: {query}"
+    art = request.args.get('art')
+    topic = request.args.get('topic')
+    channel_url = request.args.get('channel')
+
+    if topic and channel_url:
+        start_bot(channel_url, topic, art)
+
+    return f"The value of 'query' is: {topic}"
+
 
 if __name__ == '__main__':
     app.run(debug=True)

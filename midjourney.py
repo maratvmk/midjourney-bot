@@ -249,7 +249,7 @@ async def main(bot_command: str, channel_url: str, PROMPT: str):
         logger.error(f"Error occurred: {e} while executing the main function.")
         raise e
     finally:
-        if browser & browser.isConnected():
+        if browser and browser.is_connected:
             await browser.close()
 
 
@@ -339,16 +339,15 @@ async def send_bot_command(page, command: str, PROMPT: str):
         raise e
 
 
-def start_bot(art_type: str, channel_url: str, descriptors: str, topic: str):
+def start_bot(channel_url: str, topic: str, art_type: str = 'realistic'):
     """
     Function to start the bot with the specified parameters.
 
     Parameters:
-    - art_type (str): The type of art to generate.
-    - bot_command (str): The command to send to the bot.
     - channel_url (str): The URL of the channel where the bot is located.
     - descriptors (str): The descriptors to include in the prompt.
     - topic (str): The topic of the image to generate.
+    - art_type (str): The type of art to generate.
 
     Returns:
     - None
@@ -356,7 +355,7 @@ def start_bot(art_type: str, channel_url: str, descriptors: str, topic: str):
     length = random.randint(3, 8)
     bot_command = '/imagine'[0:length]
     try:
-        PROMPT = f"Generate a Midjourney prompt to result in an {art_type} image about {topic} include {descriptors}"
+        PROMPT = f"Generate a Midjourney prompt to result in an {art_type} image about {topic}"
         logger.info(f"Prompt: {PROMPT}")
 
         asyncio.run(main(bot_command, channel_url, PROMPT))
@@ -410,8 +409,3 @@ async def wait_and_select_upscale_options(page, prompt_text: str):
     except Exception as e:
         logger.error(f"An error occurred while finding the last message: {e}")
         raise e
-
-    
-# if __name__ == '__main__':
-    # botcommand = ['/im', '/ima', '/imag', '/imagi', '/imagin', '/imagine'][random.randint(0, 5)]
-    # start_bot('anime', 'https://discord.com/channels/1149334794837180577/1149334795546009612', 'foamed polyisocyanurate', 'building materials')
