@@ -245,6 +245,7 @@ async def main(bot_command: str, channel_url: str, PROMPT: str):
             # for i in range(10):
             await open_discord_channel(page, channel_url, bot_command, PROMPT)
             logger.info(f"Iteration completed.")
+            await page.close()
     except Exception as e:
         logger.error(f"Error occurred: {e} while executing the main function.")
         raise e
@@ -324,7 +325,7 @@ async def send_bot_command(page, command: str, PROMPT: str):
 
         logger.info("Typing in bot command")
         await chat_bar.fill(command)
-        await asyncio.sleep(random.randint(1, 5))
+        await asyncio.sleep(random.randint(2, 5))
 
         logger.info("Selecting the prompt option in the suggestions menu")
         prompt_option = page.locator('xpath=/html/body/div[1]/div[2]/div[1]/div[1]/div/div[2]/div/div/div/div/div[3]/div[2]/main/form/div/div[2]/div/div/div[2]/div[1]/div/div/div')
@@ -352,7 +353,7 @@ def start_bot(channel_url: str, topic: str, art_type: str = 'realistic'):
     Returns:
     - None
     """
-    length = random.randint(3, 8)
+    length = random.randint(3, 7)
     bot_command = '/imagine'[0:length]
     try:
         PROMPT = f"Generate a Midjourney prompt to result in an {art_type} image about {topic}"

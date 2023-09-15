@@ -1,10 +1,5 @@
 from flask import Flask, request
 from midjourney import start_bot
-from dotenv import load_dotenv
-import os
-
-# Load variables from .env file
-load_dotenv()
 
 app = Flask(__name__)
 
