@@ -13,6 +13,11 @@ import uuid
 from loguru import logger
 from playwright.async_api import async_playwright, Page
 from playwright.sync_api import sync_playwright
+from dotenv import load_dotenv
+import os
+
+# Load variables from .env file
+load_dotenv()
 
 # Get logger for this file
 logger = logging.getLogger(__name__)
@@ -64,82 +69,7 @@ def random_sleep():
     """Sleep for a random amount of time between 1 and 5 seconds."""
     time.sleep(random.randint(1, 5))
 
-def get_openai_api_key_from_file(filepath):
-    """Get OpenAI API key from a file.
-    Args:
-        filepath (str): Path to the file containing the API key.
-    Returns:
-        str: API key.
-    """
-    logger.info("Midjourney Automation bot is reading the API key from file: %s", filepath)
-    with open(filepath, 'r') as infile:
-        api_key = infile.read().strip()
-    logger.info("API key successfully read from file.")
-    return api_key
 
-def get_openai_api_key_from_env():
-    """Get OpenAI API key from the environment variable.
-    Returns:
-        str: API key.
-    """
-    logger.info("Midjourney Automation bot is fetching the API key from environment variable.")
-    api_key = os.getenv('OPENAI_API_KEY')
-    logger.info("API key successfully read from environment variable.")
-    return api_key
-
-
-def get_openai_api_key_from_user():
-    """Get OpenAI API key from user input.
-    Returns:
-        str: API key.
-    """
-    logger.info("Waiting for user to enter API key for Midjourney Automation bot.")
-    api_key = input("Please enter your OpenAI API key for Midjourney Automation bot: ")
-    logger.info("API key successfully entered by the user.")
-    return api_key
-
-
-def set_openai_api_key(api_key):
-    """Set OpenAI API key in the environment variable.
-    Args:
-        api_key (str): API key to set.
-    """
-    logger.info("Midjourney Automation bot is setting API key in environment variable.")
-    os.environ['OPENAI_API_KEY'] = api_key
-    logger.info("API key successfully set in environment variable.")
-
-
-def get_openai_api_key():
-    """Get OpenAI API key based on user's preference.
-    Returns:
-        str: API key.
-    """
-    while True:
-        logger.info("Midjourney Automation bot is asking user for method of entering API key.")
-        logger.info("Welcome to the Midjourney Automation bot OpenAI API key setup script.")
-        logger.info("How would you like to enter your OpenAI API key for Midjourney Automation bot?")
-        logger.info("1. From a file")
-        logger.info("2. From the environment")
-        logger.info("3. From the console")
-        logger.info("4. Exit")
-        choice = input("Please enter a number: ")
-        if choice == '1':
-            logger.info("User chose to enter API key for Midjourney Automation bot from a file.")
-            filepath = input("Please enter the filepath to your API key file for Midjourney Automation bot: ")
-            return get_openai_api_key_from_file(filepath)
-        elif choice == '2':
-            logger.info("User chose to enter API key for Midjourney Automation bot from the environment.")
-            return get_openai_api_key_from_env()
-        elif choice == '3':
-            logger.info("User chose to enter API key for Midjourney Automation bot from the console.")
-            return get_openai_api_key_from_user()
-        elif choice == '4':
-            logger.info("User chose to exit the Midjourney Automation bot setup.")
-            exit()
-        else:
-            logger.warning("Invalid choice entered by user for Midjourney Automation bot setup. Retrying.")
-
-@eel.expose
 async def download_upscaled_images(page, prompt_text: str):
     try:
         messages = await page.query_selector_all(".messageListItem-ZZ7v6g")
@@ -177,7 +107,7 @@ async def download_upscaled_images(page, prompt_text: str):
     except Exception as e:
         logger.info(f"An error occurred while finding the last message: {e}")
 
-@eel.expose
+
 async def generate_prompt_and_submit_command(page, prompt: str):
     try:
         prompt_text = gpt3_midjourney_prompt(prompt)
@@ -187,13 +117,13 @@ async def generate_prompt_and_submit_command(page, prompt: str):
         random_sleep()
         await page.keyboard.press("Enter")
         logger.info(f'Successfully submitted prompt: {prompt_text}')
-        await wait_and_select_upscale_options(page, prompt_text)
+        # await wait_and_select_upscale_options(page, prompt_text) #commented for now
     except Exception as e:
         logger.error(f"An error occurred while submitting the prompt: {e}")
         raise e
 
-@eel.expose
-def gpt3_midjourney_prompt(prompt: str, engine='text-davinci-003', temp=0.7, top_p=1.0, tokens=400, freq_pen=0.0, pres_pen=0.0) -> str:
+
+def gpt3_midjourney_prompt(prompt: str, model='gpt-3.5-turbo', temp=0.7, top_p=1.0, tokens=400, freq_pen=0.0, pres_pen=0.0) -> str:
     """
     Function to generate a prompt using the OpenAI GPT-3 model.
     
@@ -216,21 +146,20 @@ def gpt3_midjourney_prompt(prompt: str, engine='text-davinci-003', temp=0.7, top
     prompt = prompt.encode(encoding='ASCII', errors='ignore').decode()
     
     try:
-        response = openai.Completion.create(
-            engine=engine,
-            prompt=prompt,
-            temperature=temp,
-            max_tokens=tokens,
-            top_p=top_p,
-            frequency_penalty=freq_pen,
-            presence_penalty=pres_pen
+        openai.api_key = os.getenv('OPENAI_API_KEY')
+        response = openai.ChatCompletion.create(
+            model=model,
+            temperature = 1,
+            messages=[
+                { 'role': 'user', 'content': f"{prompt}" }
+            ]
         )
         
         if not response.choices:
             logger.error("No response from OpenAI API.")
             raise ValueError("No response from OpenAI API.")
         
-        text = response.choices[0].text.strip()
+        text = response.choices[0].message.content.strip()
         
         if not text:
             logger.error("Response text cannot be empty.")
@@ -242,7 +171,7 @@ def gpt3_midjourney_prompt(prompt: str, engine='text-davinci-003', temp=0.7, top
         logger.error(f"Error occurred: {e} while generating prompt.")
         raise e
 
-@eel.expose
+
 async def get_last_message(page) -> str:
     """
     Function to get the last message from the provided page.
@@ -276,7 +205,7 @@ async def get_last_message(page) -> str:
         raise e
 
 
-@eel.expose
+
 async def main(bot_command: str, channel_url: str, PROMPT: str):
     """
     Main function that starts the bot and interacts with the page.
@@ -292,14 +221,13 @@ async def main(bot_command: str, channel_url: str, PROMPT: str):
     try:
         browser = None
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=False)
+            browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
             await page.goto("https://www.discord.com/login")
 
             # Get credentials securely
-            with open("credentials.txt", "r") as f:
-                email = f.readline()
-                password = f.readline()
+            email = os.getenv('MD_EMAIL')
+            password = os.getenv('MD_PASSWORD')
             if not email or not password:
                 logger.error("Email or password not provided in credentials.txt.")
                 raise ValueError("Email or password not provided in credentials.txt.")
@@ -314,17 +242,17 @@ async def main(bot_command: str, channel_url: str, PROMPT: str):
             logger.info("Successfully logged into Discord.")
             await asyncio.sleep(random.randint(1, 5))
 
-            for i in range(10):
-                await open_discord_channel(page, channel_url, bot_command, PROMPT)
-                logger.info(f"Iteration {i+1} completed.")
+            # for i in range(10):
+            await open_discord_channel(page, channel_url, bot_command, PROMPT)
+            logger.info(f"Iteration completed.")
     except Exception as e:
         logger.error(f"Error occurred: {e} while executing the main function.")
         raise e
     finally:
-        if browser:
+        if browser & browser.isConnected():
             await browser.close()
 
-@eel.expose
+
 async def open_discord_channel(page, channel_url: str, bot_command: str, PROMPT: str):
     """
     Function to open a Discord channel and send a bot command.
@@ -351,7 +279,7 @@ async def open_discord_channel(page, channel_url: str, bot_command: str, PROMPT:
         logger.error(f"An error occurred while opening the channel and entering the bot command: {e}")
         raise e
 
-@eel.expose
+
 async def select_upscale_option(page, option_text: str):
     """
     Function to select an upscale option based on the provided text.
@@ -376,7 +304,7 @@ async def select_upscale_option(page, option_text: str):
         logger.error(f"An error occurred while selecting the upscale option: {e}")
         raise e
 
-@eel.expose
+
 async def send_bot_command(page, command: str, PROMPT: str):
     """
     Function to send a command to the bot in the chat bar.
@@ -410,8 +338,8 @@ async def send_bot_command(page, command: str, PROMPT: str):
         logger.error(f"An error occurred while sending the bot command: {e}")
         raise e
 
-@eel.expose
-def start_bot(art_type: str, bot_command: str, channel_url: str, descriptors: str, topic: str):
+
+def start_bot(art_type: str, channel_url: str, descriptors: str, topic: str):
     """
     Function to start the bot with the specified parameters.
 
@@ -425,6 +353,8 @@ def start_bot(art_type: str, bot_command: str, channel_url: str, descriptors: st
     Returns:
     - None
     """
+    length = random.randint(3, 8)
+    bot_command = '/imagine'[0:length]
     try:
         PROMPT = f"Generate a Midjourney prompt to result in an {art_type} image about {topic} include {descriptors}"
         logger.info(f"Prompt: {PROMPT}")
@@ -433,9 +363,9 @@ def start_bot(art_type: str, bot_command: str, channel_url: str, descriptors: st
 
     except Exception as e:
         logger.error(f"An error occurred while starting the bot: {e}")
-        raise e
+        # raise e # TODO check this 
 
-@eel.expose
+
 async def wait_and_select_upscale_options(page, prompt_text: str):
     """
     Function to wait for and select upscale options.
@@ -481,61 +411,7 @@ async def wait_and_select_upscale_options(page, prompt_text: str):
         logger.error(f"An error occurred while finding the last message: {e}")
         raise e
 
-def check_api_key(api_key: str) -> str:
-    """
-    Function to check if the OpenAI API key is already set, if not, it prompts the user to set it.
-
-    Parameters:
-    - api_key (str): The OpenAI API key.
-
-    Returns:
-    - str: The OpenAI API key.
-    """
-    try:
-        if api_key:
-            logger.info("OpenAI API key for Midjourney Automation bot is already set in the environment.")
-        else:
-            logger.info("OpenAI API key for Midjourney Automation bot is not set in the environment. Asking user to set it.")
-            api_key = get_openai_api_key()
-
-            # You might want to not log the full API key for security reasons.
-            logger.info("Your OpenAI API key for Midjourney Automation bot is set.")
-
-            set_openai_api_key(api_key)
-            logger.info("Your OpenAI API key for Midjourney Automation bot has been set in the environment.")
-        
-        return api_key
-    except Exception as e:
-        logger.error(f"An error occurred while checking or setting the OpenAI API key: {e}")
-        raise e
-
-def initialize_bot(api_key: str):
-    """
-    Function to initialize the bot.
-
-    Parameters:
-    - api_key (str): The OpenAI API key.
-
-    This function initializes the web interface with Eel and starts the web server.
-    """
-    try:
-        if not api_key:
-            logger.error("API key not provided.")
-            raise ValueError("API key not provided.")
-        
-        # Initialize eel with your web files folder
-        eel.init('web')
-        logger.info("Eel initialized with web files.")
-
-        # Start the web server.
-        eel.start('index.html', mode='chrome', cmdline_args=['--kiosk'])
-        logger.info("Web server started.")
-
-    except Exception as e:
-        logger.error(f"An error occurred while initializing the bot: {e}")
-        raise e
     
-if __name__ == '__main__':
-    api_key = os.environ.get("OPENAI_API_KEY")
-    api_key = check_api_key(api_key)
-    initialize_bot(api_key)
+# if __name__ == '__main__':
+    # botcommand = ['/im', '/ima', '/imag', '/imagi', '/imagin', '/imagine'][random.randint(0, 5)]
+    # start_bot('anime', 'https://discord.com/channels/1149334794837180577/1149334795546009612', 'foamed polyisocyanurate', 'building materials')
